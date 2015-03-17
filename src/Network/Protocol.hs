@@ -13,6 +13,7 @@ import           Data.Maybe (fromJust, isJust)
 import           Data.Word (Word8)
 import           Network
 import           System.IO
+import           System.Timeout
 import           Text.Printf
 
 import qualified Data.ByteString as B
@@ -226,9 +227,8 @@ doMessage h m = do
 
 -- | Communicate with a Dominions 4 server via the given handle. Requests game status and mods
 --   listings and sends bye.
---   Returns the game info received.
-getGameStatus :: Handle -> IO GameStatus
-getGameStatus handle = do
+doGameStatusRequest :: Handle -> IO GameStatus
+doGameStatusRequest handle = do
   game <- doMessage handle requestStatus >>= return . parseStatus
   mods <- doMessage handle requestMods >>= return . parseMods
 
