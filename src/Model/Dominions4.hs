@@ -3,7 +3,7 @@ module Model.Dominions4 where
 data Era = Early
          | Middle
          | Late
-         deriving (Eq, Read, Show)
+         deriving (Enum, Eq, Read, Show)
 
 nationName :: Int -> String
 -- Internals block

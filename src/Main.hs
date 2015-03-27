@@ -2,15 +2,18 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Main where
 
-import Configuration.Utils
-import Control.Lens
-import Control.Logging
-import Control.Concurrent
-import Control.Monad
-import Text.Printf
-import Data.Text
+import           Configuration.Utils
+import           Control.Concurrent
+import           Control.Lens
+import           Control.Logging
+import           Control.Monad
+import qualified Data.Text as T
+import           Text.Printf
 
-import Config
+import           Config
+import           Network.GGS
+import           Network.Polling
+import           Storage
 
 
 mainInfo :: ProgramInfo Config
@@ -21,11 +24,14 @@ main = runWithConfiguration mainInfo $ \conf -> do
   -- TODO: Modify `logging` to support multiple sinks (with separate log levels)
   --       and log rotation (from fast-logger).
   setLogTimeFormat "%Y-%m-%d %H:%M:%S"
-  let withLogging = case conf ^. logFile of
+  let withLogging = case conf ^. logPath of
                      ""        -> withStderrLogging
-                     otherwise -> withFileLogging (conf ^. logFile)
+                     otherwise -> withFileLogging (conf ^. logPath)
   
   withLogging $ do
+    -- Start components
+    pollControl    <- startPolling conf
+    storageControl <- startStorage conf
+    ggsControl     <- startGGS conf pollControl storageControl
 
-    forM_ [1 .. 20 :: Int] $ \n -> do
-      forkOS $ debugS "core" $ pack $ printf "derp %d" n
+    undefined

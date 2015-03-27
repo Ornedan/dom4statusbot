@@ -17,18 +17,18 @@ data GameStatus = GameStatus
                   , era        :: (Maybe Era)
                   , nations    :: [PlayerStatus]
                   , mods       :: [ModInfo]
-                  } deriving (Eq, Generic, Read, Show)
+                  } deriving (Eq, Generic, Show)
 
 data GameState = Waiting
                | Running
-               deriving(Eq, Read, Show)
+               deriving(Enum, Eq, Read, Show)
 
 data PlayerStatus = PlayerStatus
                     { nationId  :: Int
                     , player    :: PlayerType
                     , submitted :: SubmissionType
                     , connected :: Bool
-                    } deriving (Eq, Generic, Read, Show)
+                    } deriving (Eq, Generic, Show)
 
 data PlayerType = Empty
                 | Human
@@ -36,18 +36,18 @@ data PlayerType = Empty
                 | Closed
                 | DefeatedThisTurn
                 | DefeatedEarlier
-                deriving (Eq, Read, Show)
+                deriving (Enum, Eq, Read, Show)
 
 data SubmissionType = None
                     | Partial
                     | Full
-                    deriving (Eq, Read, Show)
+                    deriving (Enum, Eq, Read, Show)
 
 data ModInfo = ModInfo
                { modName         :: String
                , modMajorVersion :: Int
                , modMinorVersion :: Int
-               } deriving (Eq, Generic, Show, Read)
+               } deriving (Eq, Generic, Show)
 
 instance NFData GameStatus where rnf = genericRnf
 instance NFData ModInfo where rnf = genericRnf

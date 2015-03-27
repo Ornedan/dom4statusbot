@@ -5,7 +5,7 @@ name:                dom4statusbot
 version:             0.1.0.0
 synopsis:            Dominions 4 games tracker IRC bot
 -- description:         
-homepage:            https://github.com/Ornedan/domstatusbot/
+homepage:            https://github.com/Ornedan/dom4statusbot/
 license:             BSD3
 license-file:        LICENSE
 author:              Heikki Aitakangas
@@ -20,7 +20,8 @@ executable domstatusbot
   main-is:             Main.hs
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       aeson >= 0.7.0.6
+  build-depends:       HTTP >= 4000.2.10
+                     , aeson >= 0.7.0.6
                      , base >=4.7 && <4.8
                      , binary >= 0.7.1.0
                      , bytestring >= 0.10.4.0
@@ -28,6 +29,9 @@ executable domstatusbot
                      , containers >= 0.5.5.1
                      , deepseq >= 1.3.0.2
                      , deepseq-generics >= 0.1.1.2
+                     , groundhog >= 0.7.0.2
+                     , groundhog-sqlite >= 0.7.0.1
+                     , groundhog-th >= 0.7.0
                      , lens >= 4.8
                      , logging >= 2.1.0
                      , monad-logger >= 0.3.13
@@ -35,22 +39,9 @@ executable domstatusbot
                      , optparse-applicative >= 0.11.0.2
                      , stm >= 2.4.2
                      , text >= 1.1
+                     , time >= 1.4.2
+                     , transformers >= 0.3.0.0
                      , utf8-string >= 1
                      , zlib >= 0.5.4.2
-
---                     , binary >= 0.7.4.0
---                     , bytestring >= 0.10.0.2
---                     , containers >= 0.5.0.0
---                     , deepseq >= 1.3.0.1
---                     , deepseq-generics >= 0.1.1.2
---                     , groundhog == 0.7.*
---                     , groundhog-sqlite == 0.7.*
---                     , groundhog-th == 0.7.*
---                     , network >= 2.6.0.2
---                     , stm >= 2.4.2
---                     , utf8-string >= 1
---                     , zlib >= 0.5.4.1
---                     , configuration-tools
---                     , HTTP
   hs-source-dirs:      src
   default-language:    Haskell2010

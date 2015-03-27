@@ -14,7 +14,9 @@ data Config = Config
               , _ircNick         :: String
               , _ircChannel      :: String
 
-              , _logFile         :: String
+              , _dbPath          :: String
+
+              , _logPath         :: String
               , _logLevel        :: LogLevel
 
               , _gamePollThreads :: Int
@@ -33,7 +35,8 @@ defaultConfig = Config
                 { _ircServer       = ""
                 , _ircNick         = "Treebot"
                 , _ircChannel      = ""
-                , _logFile         = ""
+                , _dbPath          = ":memory:"
+                , _logPath         = ""
                 , _logLevel        = LevelDebug
                 , _gamePollThreads = 4
                 , _connectTimeout  = 3
@@ -49,7 +52,8 @@ instance FromJSON (Config -> Config) where
                     <$< ircServer       ..: "ircServer" % o
                     <*< ircNick         ..: "ircNick" % o
                     <*< ircChannel      ..: "ircChannel" % o
-                    <*< logFile         ..: "logFile" % o
+                    <*< dbPath          ..: "dbPath" % o
+                    <*< logPath         ..: "logPath" % o
                     <*< logLevel        ..: "logLevel" % o
                     <*< gamePollThreads ..: "gamePollThreads" % o
                     <*< connectTimeout  ..: "connectTimeout" % o
@@ -63,7 +67,8 @@ instance ToJSON Config where
     [ "ircServer"       .= _ircServer a
     , "ircNick"         .= _ircNick a
     , "ircChannel"      .= _ircChannel a
-    , "logFile"         .= _logFile a
+    , "dbPath"          .= _dbPath a
+    , "logPath"         .= _logPath a
     , "logLevel"        .= _logLevel a
     , "gamePollThreads" .= _gamePollThreads a
     , "connectTimeout"  .= _connectTimeout a
@@ -90,10 +95,15 @@ pConfig = id
           <> metavar "CHANNEL"
           <> help "IRC channel"
 
-          <*< logFile .:: strOption
-          % long "log-file"
+          <*< dbPath .:: strOption
+          % long "db-path"
           <> metavar "PATH"
-          <> help "log file name"
+          <> help "database path"
+
+          <*< logPath .:: strOption
+          % long "log-path"
+          <> metavar "PATH"
+          <> help "log file path"
 
           <*< logLevel .:: pLogLevel
           % long "log-level"

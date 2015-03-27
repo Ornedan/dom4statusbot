@@ -28,6 +28,7 @@ import           System.Timeout
 import           Text.Printf
 
 import           Config
+import           Data.Time.Clock
 import           Model.Game
 import           Network.Protocol
 
@@ -41,13 +42,15 @@ data PollControl = PollControl
                      -- TODO: better name
                    , inFlight       :: TVar InFlight
                      -- | Status updates stream - does not include failed polls.
-                   , statusChan     :: TChan GameStatus
+                   , statusChan     :: TChan (GameStatus, UTCTime)
                    }
 
 data PollResult = FailedOnException
                 | ConnectingTimedOut
                 | RequestTimedOut
-                | Success GameStatus
+                | Success
+                  { receivedStatus :: GameStatus,
+                    requestSent    :: UTCTime }
                 deriving Show
 
 
@@ -92,7 +95,7 @@ requestPoll control address = do
 
 
 poller :: String -> Config -> TMVar () -> TQueue Address -> TVar InFlight ->
-          TChan GameStatus -> IO ()
+          TChan (GameStatus, UTCTime) -> IO ()
 poller threadName config killSwitch pollQueue inFlight statusChan = do
   logS' "polling" $ T.pack $ printf "%s: Polling thread starting" threadName
   loop
@@ -119,8 +122,8 @@ poller threadName config killSwitch pollQueue inFlight statusChan = do
 
           -- If we got a successfull result, also publish it to the status channel
           case result of
-           Success status -> writeTChan statusChan status
-           _              -> return ()
+           Success {} -> writeTChan statusChan (receivedStatus result, requestSent result)
+           _          -> return ()
           
           -- Someone can now enqueue the game to be polled again
           modifyTVar' inFlight $ Map.delete address
@@ -138,7 +141,7 @@ pollGame threadName config (host, port) = catch stageConnect $ \e -> do
   where
     stageConnect = do
       debugS' "polling" $ T.pack $ printf "%s: Polling game at %s:%d" threadName host port
-  
+
       let cto = config ^. connectTimeout * 1000 * 1000
       
       mhandle <- timeout cto $ connectTo host (PortNumber $ fromIntegral port)
@@ -151,6 +154,7 @@ pollGame threadName config (host, port) = catch stageConnect $ \e -> do
     stageRequest :: Handle -> IO PollResult
     stageRequest handle = do
       let pto = config ^. pollTimeout * 1000 * 1000
+      started <- getCurrentTime
       mstatus <- timeout (pto * 1000 * 1000) $ do
         status <- doGameStatusRequest handle
         hClose handle
@@ -159,5 +163,5 @@ pollGame threadName config (host, port) = catch stageConnect $ \e -> do
       when (isNothing mstatus) $ do
         warnS' "polling" $ T.pack $ printf "%s: Game status request to %s:%d timed out" threadName host port
 
-      maybe (return RequestTimedOut) (return . Success) mstatus
+      maybe (return RequestTimedOut) (return . flip Success started) mstatus
   
