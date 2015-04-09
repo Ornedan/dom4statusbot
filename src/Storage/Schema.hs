@@ -80,7 +80,7 @@ mkPersist defaultCodegenConfig [groundhog|
   representation: showread
 |]
 
-
+{-
 main = withSqliteConn ":memory:" $ \conn -> do
   print "meh"
 
@@ -89,4 +89,4 @@ main = withSqliteConn ":memory:" $ \conn -> do
     migrate (undefined :: Listen)
   
   print "feh"
-
+-}

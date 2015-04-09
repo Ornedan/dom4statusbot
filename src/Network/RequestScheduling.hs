@@ -1,12 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
-module Network.Polling
-       (PollControl,
+module Network.RequestScheduling
+       (RequestScheduleControl,
         PollResult(..),
-        startPolling,
-        stopPolling,
-        requestPoll
+        statusChan,
+        startRequestScheduling,
+        stopRequestScheduling,
+        scheduleStatusRequest
        ) where
 
 import           Control.Applicative
@@ -36,14 +37,14 @@ import           Network.Protocol
 type Address = (String, Int)
 type InFlight = Map Address [TMVar PollResult]
 
-data PollControl = PollControl
-                   { pollThreads    :: [(ThreadId, TMVar ())]
-                   , pollQueue      :: TQueue Address
-                     -- TODO: better name
-                   , inFlight       :: TVar InFlight
-                     -- | Status updates stream - does not include failed polls.
-                   , statusChan     :: TChan (GameStatus, UTCTime)
-                   }
+data RequestScheduleControl = RequestScheduleControl
+                              { pollThreads    :: [(ThreadId, TMVar ())]
+                              , pollQueue      :: TQueue Address
+                                -- TODO: better name
+                              , inFlight       :: TVar InFlight
+                                -- | Status updates stream - does not include failed polls.
+                              , statusChan     :: TChan (GameStatus, UTCTime)
+                              }
 
 data PollResult = FailedOnException
                 | ConnectingTimedOut
@@ -54,8 +55,8 @@ data PollResult = FailedOnException
                 deriving Show
 
 
-startPolling :: Config -> IO PollControl
-startPolling config = do
+startRequestScheduling :: Config -> IO RequestScheduleControl
+startRequestScheduling config = do
   -- Set up shared state
   pollQueue <- newTQueueIO
   inFlight <- newTVarIO Map.empty
@@ -68,20 +69,20 @@ startPolling config = do
     tid <- forkIO $ poller threadName config killSwitch pollQueue inFlight statusChan
     return (tid, killSwitch)
   
-  return PollControl { pollThreads    = pollThreads
-                     , pollQueue      = pollQueue
-                     , inFlight       = inFlight
-                     , statusChan     = statusChan
-                     }
+  return RequestScheduleControl { pollThreads    = pollThreads
+                                , pollQueue      = pollQueue
+                                , inFlight       = inFlight
+                                , statusChan     = statusChan
+                                }
 
-stopPolling :: PollControl -> IO ()
-stopPolling control = do
-  logS' "polling" "Toggling poll thread kill switches"
+stopRequestScheduling :: RequestScheduleControl -> IO ()
+stopRequestScheduling control = do
+  logS' "request-scheduling" "Toggling poll thread kill switches"
   forM_ (pollThreads control) $ \(tid, killSwitch) -> do
     atomically $ putTMVar killSwitch ()
 
-requestPoll :: PollControl -> Address -> IO (TMVar PollResult)
-requestPoll control address = do
+scheduleStatusRequest :: RequestScheduleControl -> Address -> IO (TMVar PollResult)
+scheduleStatusRequest control address = do
   atomically $ do
     -- Only enqueue a new request if one is not already active (in queue or in progress)
     active <- Map.member address <$> readTVar (inFlight control)
@@ -97,7 +98,7 @@ requestPoll control address = do
 poller :: String -> Config -> TMVar () -> TQueue Address -> TVar InFlight ->
           TChan (GameStatus, UTCTime) -> IO ()
 poller threadName config killSwitch pollQueue inFlight statusChan = do
-  logS' "polling" $ T.pack $ printf "%s: Polling thread starting" threadName
+  logS' "request-scheduling" $ T.pack $ printf "%s: Polling thread starting" threadName
   loop
   where
     loop = do
@@ -109,7 +110,7 @@ poller threadName config killSwitch pollQueue inFlight statusChan = do
         return (live, next)
       -- Shutdown actions. Note it's first so loop is in tail position
       when (not live) $ do
-        logS' "polling" $ T.pack $ printf "%s: Polling thread terminated" threadName
+        logS' "request-scheduling" $ T.pack $ printf "%s: Polling thread terminated" threadName
 
       when live $ do
         let address = fromJust next
@@ -135,19 +136,19 @@ poller threadName config killSwitch pollQueue inFlight statusChan = do
 pollGame :: String -> Config -> Address -> IO PollResult
 pollGame threadName config (host, port) = catch stageConnect $ \e -> do
   let err = show (e :: IOException)
-  warnS' "polling" $ T.pack $ printf "%s: Polling %s:%d failed. Cause: %s" threadName host port err
+  warnS' "request-scheduling" $ T.pack $ printf "%s: Polling %s:%d failed. Cause: %s" threadName host port err
   return FailedOnException
   
   where
     stageConnect = do
-      debugS' "polling" $ T.pack $ printf "%s: Polling game at %s:%d" threadName host port
+      debugS' "request-scheduling" $ T.pack $ printf "%s: Polling game at %s:%d" threadName host port
 
       let cto = config ^. connectTimeout * 1000 * 1000
       
       mhandle <- timeout cto $ connectTo host (PortNumber $ fromIntegral port)
 
       when (isNothing mhandle) $ do
-        warnS' "polling" $ T.pack $ printf "%s: Connecting to %s:%d timed out" threadName host port
+        warnS' "request-scheduling" $ T.pack $ printf "%s: Connecting to %s:%d timed out" threadName host port
 
       maybe (return ConnectingTimedOut) stageRequest mhandle
 
@@ -161,7 +162,7 @@ pollGame threadName config (host, port) = catch stageConnect $ \e -> do
         return status
 
       when (isNothing mstatus) $ do
-        warnS' "polling" $ T.pack $ printf "%s: Game status request to %s:%d timed out" threadName host port
+        warnS' "request-scheduling" $ T.pack $ printf "%s: Game status request to %s:%d timed out" threadName host port
 
       maybe (return RequestTimedOut) (return . flip Success started) mstatus
   

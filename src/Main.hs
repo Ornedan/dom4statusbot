@@ -12,7 +12,8 @@ import           Text.Printf
 
 import           Config
 import           Network.GGS
-import           Network.Polling
+import           Network.RequestScheduling
+import           Polling
 import           Storage
 
 
@@ -30,8 +31,9 @@ main = runWithConfiguration mainInfo $ \conf -> do
   
   withLogging $ do
     -- Start components
-    pollControl    <- startPolling conf
     storageControl <- startStorage conf
-    ggsControl     <- startGGS conf pollControl storageControl
+    requestControl <- startRequestScheduling conf
+    ggsControl     <- startGGS conf requestControl storageControl
+    pollControl    <- startPolling conf requestControl storageControl
 
-    undefined
+    threadDelay $ 10 * 60 * 1000 * 1000
